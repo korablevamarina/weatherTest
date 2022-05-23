@@ -1,9 +1,18 @@
 package com.kmv;
 
+import io.restassured.RestAssured;
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.builder.ResponseSpecBuilder;
+import io.restassured.filter.log.LogDetail;
+import io.restassured.filter.log.ResponseLoggingFilter;
+import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static com.kmv.TestConstants.APPID;
+import static com.kmv.TestConstants.BASE_URL;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -12,21 +21,36 @@ import static org.hamcrest.Matchers.lessThan;
 
 public class WeatherTest {
 
+    @BeforeAll
+    static void beforeTest() {
+        RestAssured.requestSpecification = new RequestSpecBuilder()
+                .addQueryParam("appid", APPID)
+                .setBaseUri(BASE_URL)
+                .log(LogDetail.ALL)
+                .addFilter(new ResponseLoggingFilter())
+                .build();
+
+        RestAssured.responseSpecification = new ResponseSpecBuilder()
+                .expectStatusCode(200)
+                .expectStatusLine("HTTP/1.1 200 OK")
+                .expectContentType(ContentType.JSON)
+                .build();
+    }
+
     @Test
     @DisplayName("Get weather with lat and lon params")
     void currentWeatherLatLonTest() {
         JsonPath response = given()
                 .queryParam("lat", "35")
                 .queryParam("lon", "139")
-                .queryParam("appid", "09a6c973a53c7699876fd2117cee9c1c")
                 .when()
-                .get("https://api.openweathermap.org/data/2.5/weather")
+                .get()
                 .body()
                 .jsonPath();
         assertThat(response.get("coord.lat"), equalTo(35));
         assertThat(response.get("coord.lon"), equalTo(139));
         assertThat(response.get("main.temp"), greaterThan(0f));
-        assertThat(response.get("main.temp"), lessThan(1000f));
+        assertThat(response.get("main.temp"), lessThan(373f));
     }
 
     @Test
@@ -36,15 +60,14 @@ public class WeatherTest {
                 .queryParam("lat", "59.9375")
                 .queryParam("lon", "30.308611")
                 .queryParam("lang", "ru")
-                .queryParam("appid", "09a6c973a53c7699876fd2117cee9c1c")
                 .when()
-                .get("https://api.openweathermap.org/data/2.5/weather")
+                .get()
                 .body()
                 .jsonPath();
         assertThat(response.get("name"), equalTo("Новая Голландия"));
         assertThat(response.get("sys.country"), equalTo("RU"));
         assertThat(response.get("main.temp"), greaterThan(0f));
-        assertThat(response.get("main.temp"), lessThan(1000f));
+        assertThat(response.get("main.temp"), lessThan(373f));
         assertThat(response.get("coord.lat"), equalTo(59.9375f));
         assertThat(response.get("coord.lon"), equalTo(30.3086f));
     }
@@ -55,15 +78,28 @@ public class WeatherTest {
         JsonPath response = given()
                 .queryParam("q", "London")
                 .queryParam("units", "metric")
-                .queryParam("appid", "09a6c973a53c7699876fd2117cee9c1c")
                 .when()
-                .get("https://api.openweathermap.org/data/2.5/weather")
+                .get()
                 .body()
                 .jsonPath();
         assertThat(response.get("sys.country"), equalTo("GB"));
-        assertThat(response.get("main.temp"), greaterThan(0f));
-        assertThat(response.get("main.temp"), lessThan(50f));
+        assertThat(response.get("main.temp"), greaterThan(-273f));
+        assertThat(response.get("main.temp"), lessThan(100f));
         assertThat(response.get("name"), equalTo("London"));
+    }
+    @Test
+    @DisplayName("Get weather with lat and lon params")
+    void currentWeatherLatLonTest2() {
+        JsonPath response = given()
+                .queryParam("zip", "190000,ru")
+                .when()
+                .get()
+                .body()
+                .jsonPath();
+        assertThat(response.get("name"), equalTo("Санкт-Петербург"));
+        assertThat(response.get("timezone"), equalTo(10800));
+        assertThat(response.get("main.temp"), greaterThan(0f));
+        assertThat(response.get("main.temp"), lessThan(373f));
     }
 }
 
